@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>資產負債表 V22 PRO</title>
+    <title>資產負債表 V23 PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -66,7 +66,7 @@
 
                 <div>
                     <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">報表月份</label>
-                    <select id="month-selector" onchange="changeMonth()" class="font-black text-lg p-4 rounded-2xl border-none bg-gray-50 text-blue-600 shadow-sm"></select>
+                    <select id="month-selector" onchange="changeMonth()" class="font-black text-lg p-4 rounded-2xl border-none bg-gray-100 text-blue-600 shadow-sm"></select>
                 </div>
 
                 <div class="space-y-3">
@@ -89,15 +89,15 @@
     </aside>
 
     <main id="main-ui" class="main-content flex-1 space-y-8">
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 text-center lg:text-left">
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
             <div class="card bg-zinc-900 text-white col-span-2 lg:col-span-1 border-l-8 border-black">
                 <p class="text-[10px] font-bold text-gray-500 uppercase mb-2 tracking-widest">期末淨資產</p>
                 <h2 id="stat-networth" class="text-3xl font-black money-text">$0</h2>
             </div>
             <div class="card border-b-4 border-green-500"><p class="text-[10px] font-bold text-gray-400 uppercase mb-2">收入</p><h2 id="stat-income" class="text-2xl font-black text-green-600 money-text">$0</h2></div>
             <div class="card border-b-4 border-red-500"><p class="text-[10px] font-bold text-gray-400 uppercase mb-2">支出</p><h2 id="stat-expense" class="text-2xl font-black text-red-500 money-text">$0</h2></div>
-            <div class="card"><p class="text-[10px] font-bold text-gray-400 uppercase mb-2">已實現</p><h2 id="stat-realized" class="text-2xl font-black money-text">$0</h2></div>
-            <div class="card"><p class="text-[10px] font-bold text-gray-400 uppercase mb-2">未實現</p><h2 id="stat-unrealized" class="text-2xl font-black money-text">$0</h2></div>
+            <div class="card shadow-sm"><p class="text-[10px] font-bold text-gray-400 uppercase mb-2">已實現</p><h2 id="stat-realized" class="text-2xl font-black money-text">$0</h2></div>
+            <div class="card shadow-sm"><p class="text-[10px] font-bold text-gray-400 uppercase mb-2">未實現</p><h2 id="stat-unrealized" class="text-2xl font-black money-text">$0</h2></div>
         </div>
 
         <div class="flex gap-8 text-[11px] font-black uppercase tracking-widest border-b border-gray-100 overflow-x-auto whitespace-nowrap scrollbar-hide py-2">
@@ -111,7 +111,7 @@
             <div class="space-y-5"><h3 class="text-[11px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-green-500 pl-4">當月收入</h3><div id="list-income" class="card p-2 divide-y divide-gray-50"></div></div>
             <div class="space-y-5">
                 <h3 class="text-[11px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-black pl-4 flex justify-between items-center">
-                    <span>資產結算 (可拖移)</span>
+                    <span>資產結算 (可拖移排序)</span>
                     <span class="text-[8px] bg-gray-100 px-2 py-1 rounded text-gray-400">Sortable List</span>
                 </h3>
                 <div id="list-assets" class="card p-2 divide-y divide-gray-50"></div>
@@ -152,7 +152,7 @@
                 </div>
                 <div class="flex gap-4 pt-6">
                     <button type="button" onclick="window.closeFinanceModal()" class="flex-1 bg-gray-100 py-5 rounded-3xl font-black text-gray-500">取消</button>
-                    <button type="submit" class="flex-1 bg-black text-white py-5 rounded-3xl font-black shadow-xl">儲存</button>
+                    <button type="submit" class="flex-1 bg-black text-white py-5 rounded-3xl font-black shadow-xl">儲存並同步</button>
                 </div>
                 <div id="delete-btn-container" class="text-center mt-4 hidden"><button type="button" onclick="deleteEntry()" class="text-red-400 text-[11px] font-black underline uppercase">徹底刪除</button></div>
             </form>
@@ -183,7 +183,10 @@
             animation: 180, handle: '.drag-handle', ghostClass: 'sortable-ghost',
             onEnd: function() {
                 const newIds = Array.from(assetListEl.children).map(el => parseFloat(el.dataset.id));
-                const otherRecs = records.filter(r => !(r.type === 'asset' && r.month === parseInt(mSel.value)));
+                const currentMonth = parseInt(mSel.value);
+                // 找出不是當月資產的所有紀錄
+                const otherRecs = records.filter(r => !(r.type === 'asset' && r.month === currentMonth));
+                // 根據新 ID 順序重新排列當月資產
                 const sortedAssets = newIds.map(id => records.find(r => r.id === id));
                 records = [...otherRecs, ...sortedAssets];
                 saveAndRender();
@@ -225,14 +228,14 @@
                 status.className = "text-center text-green-500 italic text-[10px] font-black";
                 renderAll();
             } catch (e) {
-                records = JSON.parse(localStorage.getItem('finance_records_v22')) || [];
+                records = JSON.parse(localStorage.getItem('finance_records_v23')) || [];
                 status.innerText = "OFFLINE";
                 renderAll();
             }
         }
 
         async function saveAndRender() {
-            localStorage.setItem('finance_records_v22', JSON.stringify(records));
+            localStorage.setItem('finance_records_v23', JSON.stringify(records));
             renderAll();
             const status = document.getElementById('sync-status');
             status.innerText = "UPLOADING...";
@@ -252,20 +255,28 @@
 
         function togglePrivacy() { document.getElementById('main-ui').classList.toggle('mask-mode', document.getElementById('privacy-toggle').checked); }
         
-        // 強化版資產繼承
+        // V23 強化版資產全量繼承邏輯
         function changeMonth() {
             const targetM = parseInt(mSel.value);
             const prevM = targetM === 1 ? 12 : targetM - 1;
-            const hasAssets = records.some(r => r.type === 'asset' && r.month === targetM);
             
-            if (!hasAssets) {
+            // 檢查目標月份是否完全沒有資產項目
+            const hasAssetsInTarget = records.some(r => r.type === 'asset' && r.month === targetM);
+            
+            if (!hasAssetsInTarget) {
+                // 抓取上個月的所有資產，且保留排序
                 const prevAssets = records.filter(r => r.type === 'asset' && r.month === prevM);
+                
                 if (prevAssets.length > 0) {
-                    const inherited = prevAssets.map(pa => ({
-                        ...pa, id: Date.now() + Math.random(), month: targetM, endMonth: targetM 
+                    const inherited = prevAssets.map((pa, idx) => ({
+                        ...pa, 
+                        // 使用 performance.now 搭配 index 確保 ID 絕對唯一且不重複
+                        id: Date.now() + Math.random() + idx, 
+                        month: targetM, 
+                        endMonth: targetM 
                     }));
                     records = [...records, ...inherited];
-                    saveAndRender();
+                    saveAndRender(); // 繼承後立即同步雲端
                 }
             }
             renderAll();
@@ -285,7 +296,10 @@
                 if (isAst) {
                     list.ast += `
                         <div data-id="${r.id}" class="flex justify-between items-center p-5 hover:bg-gray-50 transition group">
-                            <div class="flex items-center gap-3"><span class="drag-handle text-gray-200 group-hover:text-gray-400 transition">⠿</span><p onclick="window.openFinanceModal(${r.id})" class="font-bold cursor-pointer text-gray-800">${r.name}</p></div>
+                            <div class="flex items-center gap-3">
+                                <span class="drag-handle text-gray-200 group-hover:text-gray-400 transition">⠿</span>
+                                <p onclick="window.openFinanceModal(${r.id})" class="font-bold cursor-pointer text-gray-800">${r.name}</p>
+                            </div>
                             <span onclick="window.openFinanceModal(${r.id})" class="font-mono font-black money-text text-base cursor-pointer">$${Math.round(r.amount).toLocaleString()}</span>
                         </div>`;
                     stats.nw += Number(r.amount);
@@ -299,7 +313,7 @@
                     list.bFull += `<div onclick="window.openFinanceModal(${r.id})" class="flex justify-between items-center p-6 card shadow-sm active:scale-98 transition ${r.paid ? 'opacity-25 grayscale' : ''}"><div class="flex items-center gap-4"><input type="checkbox" ${r.paid ? 'checked' : ''} onchange="event.stopPropagation(); toggleBillPaid(${r.id})" class="w-6 h-6 accent-black rounded-lg"><p class="font-black text-sm">${r.name}</p></div><span class="font-black font-mono money-text">$${Math.round(r.amount).toLocaleString()}</span></div>`;
                 } else if (r.type === 'expense' && isDebtActive) {
                     stats.exp += Number(r.amount);
-                    list.debt += `<div onclick="window.openFinanceModal(${r.id})" class="flex justify-between items-center p-5 card shadow-sm border-l-4 border-red-500"><div class="flex items-center gap-4"><div class="text-center bg-zinc-900 text-white px-3 py-1 rounded-xl font-mono text-xs">${r.month}M</div><div><p class="font-black text-sm">${r.name}</p><p class="text-[10px] text-red-500 font-bold uppercase">Pay: $${Math.round(r.amount).toLocaleString()}</p></div></div><span class="bg-red-50 text-red-600 px-3 py-1 rounded-full text-[10px] font-black border border-red-100">PAYING</span></div>`;
+                    list.debt += `<div onclick="window.openFinanceModal(${r.id})" class="flex justify-between items-center p-5 card shadow-sm border-l-4 border-red-500"><div class="flex items-center gap-4"><div class="text-center bg-zinc-900 text-white px-3 py-1 rounded-xl font-mono text-xs">${r.month}M</div><div><p class="font-black text-sm">${r.name}</p><p class="text-[10px] text-red-500 font-bold uppercase">Pay: $${Math.round(r.amount).toLocaleString()}</p></div></div><span class="bg-red-50 text-red-600 px-3 py-1 rounded-full text-[10px] font-black border border-red-100">還款中</span></div>`;
                 } else if (r.type === 'realized' && isExact) {
                     stats.rlz += Number(r.amount);
                     list.rlz += `<tr onclick="window.openFinanceModal(${r.id})" class="hover:bg-gray-50 transition cursor-pointer"><td class="p-5 font-bold">${r.name}</td><td class="p-5 text-right font-black font-mono ${r.amount>=0?'text-red-500':'text-green-600'} money-text">$${Math.round(r.amount).toLocaleString()}</td></tr>`;
