@@ -8,30 +8,55 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #111; }
-        .sidebar { width: 340px; background: white; border-right: 1px solid #e5e7eb; height: 100vh; position: fixed; overflow-y: auto; z-index: 50; }
-        .main-content { margin-left: 340px; padding: 2.5rem; }
+        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #111; overflow-x: hidden; }
+        
+        /* 側邊欄響應式設定 */
+        .sidebar { 
+            width: 320px; background: white; border-right: 1px solid #e5e7eb; 
+            height: 100vh; position: fixed; left: 0; top: 0;
+            overflow-y: auto; z-index: 100; transition: transform 0.3s ease;
+        }
+        
+        /* 手機端預設隱藏側邊欄 */
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); width: 280px; }
+            .sidebar.active { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.1); }
+            .main-content { margin-left: 0 !important; padding: 1rem !important; }
+            .mobile-header { display: flex !important; }
+        }
+
+        .main-content { margin-left: 320px; padding: 2.5rem; transition: all 0.3s; }
         .card { background: white; border-radius: 1.25rem; border: 1px solid #e5e7eb; padding: 1.25rem; }
         .tab-active { border-bottom: 2px solid #000; font-weight: 800; color: #000 !important; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+        
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
         .modal.active { display: flex; }
+        
         .text-profit { color: #ef4444; }
         .text-loss { color: #22c55e; }
-        input, select, textarea { border: 1px solid #e5e7eb; padding: 10px; border-radius: 10px; width: 100%; font-size: 14px; }
-        .status-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 900; text-transform: uppercase; }
-        .paid-item { opacity: 0.3; text-decoration: line-through; }
+        input, select, textarea { border: 1px solid #e5e7eb; padding: 10px; border-radius: 10px; width: 100%; font-size: 14px; background: white; }
+        
+        .mask-mode .money-text { filter: blur(6px); pointer-events: none; }
         .clickable-row { cursor: pointer; transition: background 0.2s; }
         .clickable-row:hover { background-color: #f3f4f6; }
-        .mask-mode .money-text { filter: blur(6px); pointer-events: none; }
-        #sync-status { font-size: 10px; font-weight: bold; }
+        .paid-item { opacity: 0.3; text-decoration: line-through; }
+        .status-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 900; text-transform: uppercase; }
     </style>
 </head>
-<body class="flex">
+<body class="flex flex-col lg:flex-row">
 
-    <aside class="sidebar p-6 flex flex-col gap-6 shadow-sm">
-        <div class="border-b pb-4">
-            <h1 class="text-xl font-black tracking-tighter italic text-black uppercase">資產負債表</h1>
-            <p id="last-update" class="text-[9px] text-gray-400 mt-1 italic tracking-widest uppercase">LAST UPDATED: --</p>
+    <header class="mobile-header hidden bg-white border-b p-4 justify-between items-center sticky top-0 z-[60]">
+        <h1 class="text-lg font-black tracking-tighter italic">資產負債表</h1>
+        <button onclick="toggleSidebar()" class="p-2 bg-gray-100 rounded-lg font-bold text-xs uppercase tracking-widest">選單 MENU</button>
+    </header>
+
+    <aside id="sidebar" class="sidebar p-6 flex flex-col gap-6">
+        <div class="flex justify-between items-center border-b pb-4">
+            <div>
+                <h1 class="text-xl font-black tracking-tighter italic text-black uppercase">資產負債表</h1>
+                <p id="last-update" class="text-[9px] text-gray-400 mt-1 italic tracking-widest uppercase">LAST UPDATED: --</p>
+            </div>
+            <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 font-bold">✕</button>
         </div>
 
         <div class="space-y-4">
@@ -64,7 +89,7 @@
         </div>
 
         <div class="mt-auto space-y-3">
-            <div id="sync-status" class="text-center text-blue-500 uppercase italic">雲端連線中...</div>
+            <div id="sync-status" class="text-center text-blue-500 uppercase italic text-[10px] font-bold">雲端連線中...</div>
             <button onclick="openModal()" class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xs font-black shadow-lg hover:bg-blue-700 transition uppercase tracking-widest">+ 新增財務項目</button>
             <div class="grid grid-cols-2 gap-2">
                 <button onclick="exportData()" class="bg-gray-100 text-[9px] font-bold py-2 rounded-lg hover:bg-gray-200 uppercase">本地備份</button>
@@ -74,51 +99,52 @@
     </aside>
 
     <main id="main-ui" class="main-content flex-1 space-y-8">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div class="card shadow-sm border-l-4 border-black bg-zinc-900 text-white">
-                <p class="text-[9px] font-bold text-gray-500 uppercase mb-1">本月期末淨資產</p>
-                <h2 id="stat-networth" class="text-xl font-black font-mono money-text">$0</h2>
+        
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+            <div class="card shadow-sm border-l-4 border-black bg-zinc-900 text-white col-span-2 lg:col-span-1">
+                <p class="text-[9px] font-bold text-gray-500 uppercase mb-1">期末淨資產</p>
+                <h2 id="stat-networth" class="text-lg lg:text-xl font-black font-mono money-text">$0</h2>
             </div>
-            <div class="card shadow-sm border-l-4 border-green-500"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">本月收入</p><h2 id="stat-income" class="text-xl font-black text-green-600 font-mono money-text">$0</h2></div>
-            <div class="card shadow-sm border-l-4 border-red-500"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">本月債務</p><h2 id="stat-expense" class="text-xl font-black text-red-500 font-mono money-text">$0</h2></div>
-            <div class="card shadow-sm"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">已實現</p><h2 id="stat-realized" class="text-xl font-bold font-mono money-text">$0</h2></div>
-            <div class="card shadow-sm"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">未實現</p><h2 id="stat-unrealized" class="text-xl font-bold font-mono money-text">$0</h2></div>
+            <div class="card shadow-sm border-l-4 border-green-500"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">新增收入</p><h2 id="stat-income" class="text-lg lg:text-xl font-black text-green-600 font-mono money-text">$0</h2></div>
+            <div class="card shadow-sm border-l-4 border-red-500"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">債務支出</p><h2 id="stat-expense" class="text-lg lg:text-xl font-black text-red-500 font-mono money-text">$0</h2></div>
+            <div class="card shadow-sm"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">已實現</p><h2 id="stat-realized" class="text-lg lg:text-xl font-bold font-mono money-text">$0</h2></div>
+            <div class="card shadow-sm"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">未實現</p><h2 id="stat-unrealized" class="text-lg lg:text-xl font-bold font-mono money-text">$0</h2></div>
         </div>
 
-        <div class="flex gap-10 text-xs font-black uppercase tracking-widest border-b border-gray-200">
-            <button onclick="switchTab('overview')" id="tab-overview" class="tab-active pb-4">資產與收入明細</button>
-            <button onclick="switchTab('debt-page')" id="tab-debt-page" class="text-gray-400 pb-4 hover:text-black">全期債務監控</button>
-            <button onclick="switchTab('bill-page')" id="tab-bill-page" class="text-gray-400 pb-4 hover:text-black">代繳卡費管理</button>
-            <button onclick="switchTab('investment')" id="tab-investment" class="text-gray-400 pb-4 hover:text-black">投資損益複盤</button>
+        <div class="flex gap-4 lg:gap-10 text-[10px] lg:text-xs font-black uppercase tracking-widest border-b border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-hide">
+            <button onclick="switchTab('overview')" id="tab-overview" class="tab-active pb-4">資產與收入</button>
+            <button onclick="switchTab('debt-page')" id="tab-debt-page" class="text-gray-400 pb-4">債務監控</button>
+            <button onclick="switchTab('bill-page')" id="tab-bill-page" class="text-gray-400 pb-4">代繳卡費</button>
+            <button onclick="switchTab('investment')" id="tab-investment" class="text-gray-400 pb-4">投資損益</button>
         </div>
 
-        <div id="section-overview" class="grid md:grid-cols-2 gap-8">
-            <div class="space-y-4"><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-green-500 pl-3">本月收入項目</h3><div id="list-income" class="card p-2 divide-y divide-gray-50"></div></div>
+        <div id="section-overview" class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            <div class="space-y-4"><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-green-500 pl-3">本月收入紀錄</h3><div id="list-income" class="card p-2 divide-y divide-gray-50"></div></div>
             <div class="space-y-4"><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-black pl-3">資產結算項目</h3><div id="list-assets" class="card p-2 divide-y divide-gray-50"></div></div>
         </div>
 
         <div id="section-debt-page" class="hidden space-y-4">
-            <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-red-500 pl-3">全期債務明細</h3>
+            <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-red-500 pl-3">全期債務監控</h3>
             <div id="list-debt-full" class="grid grid-cols-1 gap-4"></div>
         </div>
 
         <div id="section-bill-page" class="hidden space-y-4">
-            <div class="flex justify-between items-center mb-4"><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-blue-500 pl-3">本月待繳卡費</h3><p class="text-xs font-bold text-gray-500">總計：<span id="bill-total" class="text-black font-mono money-text">$0</span></p></div>
+            <div class="flex justify-between items-center mb-4"><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-blue-500 pl-3">待繳卡費</h3><p class="text-xs font-bold text-gray-500">總計：<span id="bill-total" class="text-black font-mono money-text">$0</span></p></div>
             <div id="list-bills-full" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
 
-        <div id="section-investment" class="hidden grid md:grid-cols-2 gap-8">
+        <div id="section-investment" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-red-400 pl-3 mb-4">已實現損益</h3><div class="card p-0 overflow-hidden shadow-sm"><table class="w-full text-sm text-left"><tbody id="table-realized" class="divide-y"></tbody></table></div></div>
             <div><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-emerald-400 pl-3 mb-4">未實現損益</h3><div class="card p-0 overflow-hidden shadow-sm"><table class="w-full text-sm text-left"><tbody id="table-unrealized" class="divide-y"></tbody></table></div></div>
         </div>
     </main>
 
     <div id="modal" class="modal">
-        <div class="bg-white rounded-3xl p-10 max-w-lg w-full mx-4 shadow-2xl">
-            <h2 id="modal-title" class="text-xl font-black mb-8 italic uppercase tracking-tighter">編輯項目</h2>
-            <form id="finance-form" class="space-y-5">
+        <div class="bg-white rounded-3xl p-6 lg:p-10 max-w-lg w-full mx-4 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h2 id="modal-title" class="text-xl font-black mb-6 italic uppercase tracking-tighter">編輯項目</h2>
+            <form id="finance-form" class="space-y-4">
                 <input type="hidden" id="edit-id">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3">
                     <div><label class="text-[10px] font-bold text-gray-400 uppercase">月份</label><select id="entry-month"></select></div>
                     <div><label class="text-[10px] font-bold text-gray-400 uppercase">類別</label>
                         <select id="entry-type" onchange="handleUIChange()">
@@ -131,17 +157,17 @@
                         </select>
                     </div>
                 </div>
-                <div><label class="text-[10px] font-bold text-gray-400 uppercase">名稱</label><input type="text" id="entry-name" required></div>
-                <div class="grid grid-cols-2 gap-4">
+                <div><label class="text-[10px] font-bold text-gray-400 uppercase">名稱</label><input type="text" id="entry-name" placeholder="項目名稱" required></div>
+                <div class="grid grid-cols-2 gap-3">
                     <div><label class="text-[10px] font-bold text-gray-400 uppercase">金額</label><input type="number" id="entry-amount" required></div>
                     <div id="field-cost" class="hidden"><label class="text-[10px] font-bold text-gray-400 uppercase">成本</label><input type="number" id="entry-cost"></div>
                     <div id="field-duration" class="hidden"><label class="text-[10px] font-bold text-gray-400 uppercase">結束月份</label><select id="entry-end-month" class="bg-white"></select></div>
                 </div>
-                <div class="flex gap-4 mt-8">
-                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-100 py-4 rounded-2xl font-bold hover:bg-gray-200 transition">取消</button>
-                    <button type="submit" class="flex-1 bg-black text-white py-4 rounded-2xl font-bold hover:opacity-90 transition">確認儲存</button>
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-100 py-4 rounded-2xl font-bold">取消</button>
+                    <button type="submit" class="flex-1 bg-black text-white py-4 rounded-2xl font-bold">儲存</button>
                 </div>
-                <div id="delete-btn-container" class="text-center mt-2 hidden"><button type="button" onclick="deleteEntry()" class="text-red-400 text-[10px] font-bold uppercase tracking-widest hover:text-red-600 transition">徹底刪除項目</button></div>
+                <div id="delete-btn-container" class="text-center mt-2 hidden"><button type="button" onclick="deleteEntry()" class="text-red-400 text-[10px] font-bold uppercase">徹底刪除</button></div>
             </form>
         </div>
     </div>
@@ -151,48 +177,46 @@
         const mSel = document.getElementById('month-selector');
         const startM = document.getElementById('entry-month');
         const endM = document.getElementById('entry-end-month');
-        const currentMNow = new Date().getMonth() + 1;
+        const curM = new Date().getMonth() + 1;
 
         for(let i=1; i<=12; i++) {
-            mSel.innerHTML += `<option value="${i}">${i}月 財務結算表</option>`;
+            mSel.innerHTML += `<option value="${i}">${i}月 結算報表</option>`;
             startM.innerHTML += `<option value="${i}">${i}月</option>`;
             endM.innerHTML += `<option value="${i}">${i}月</option>`;
         }
-        mSel.value = currentMNow.toString();
+        mSel.value = curM.toString();
 
         let records = [];
         let myChart;
 
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
         async function loadFromCloud() {
             try {
-                const response = await fetch(SCRIPT_URL);
-                records = await response.json();
+                const res = await fetch(SCRIPT_URL);
+                records = await res.json();
                 document.getElementById('sync-status').innerText = "雲端連網成功";
-                document.getElementById('sync-status').className = "text-center text-green-500 uppercase italic";
+                document.getElementById('sync-status').className = "text-center text-green-500 uppercase italic text-[10px] font-bold";
                 renderAll();
             } catch (e) {
-                console.log("雲端連線失敗，讀取本地存檔", e);
-                records = JSON.parse(localStorage.getItem('finance_records_v13')) || [];
+                records = JSON.parse(localStorage.getItem('finance_records_v14')) || [];
                 document.getElementById('sync-status').innerText = "離線模式運行";
-                document.getElementById('sync-status').className = "text-center text-amber-500 uppercase italic";
+                document.getElementById('sync-status').className = "text-center text-amber-500 uppercase italic text-[10px] font-bold";
                 renderAll();
             }
         }
 
         async function saveAndRender() {
-            localStorage.setItem('finance_records_v13', JSON.stringify(records));
+            localStorage.setItem('finance_records_v14', JSON.stringify(records));
             renderAll();
-            document.getElementById('sync-status').innerText = "雲端同步中...";
-            document.getElementById('sync-status').className = "text-center text-blue-500 uppercase italic animate-pulse";
+            document.getElementById('sync-status').innerText = "同步中...";
             try {
                 await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(records) });
-                document.getElementById('sync-status').innerText = "雲端同步成功";
-                document.getElementById('sync-status').className = "text-center text-green-500 uppercase italic";
-                document.getElementById('last-update').innerText = "LAST UPDATED: " + new Date().toLocaleTimeString();
-            } catch (e) {
-                document.getElementById('sync-status').innerText = "同步失敗 (請手動備份)";
-                document.getElementById('sync-status').className = "text-center text-red-500 uppercase italic";
-            }
+                document.getElementById('sync-status').innerText = "同步成功";
+                document.getElementById('last-update').innerText = "UPDATED: " + new Date().toLocaleTimeString();
+            } catch (e) { document.getElementById('sync-status').innerText = "同步失敗"; }
         }
 
         function togglePrivacy() {
@@ -209,11 +233,13 @@
                 if (prevAssets.length > 0) saveAndRender();
             }
             renderAll();
+            // 手機端切換月份後自動關閉選單
+            if(window.innerWidth < 1024) toggleSidebar();
         }
 
         function renderAll() {
             const selM = parseInt(mSel.value);
-            const list = { inc: '', ast: '', billFull: '', debt: '', rlz: '', unrlz: '', qDebt: '' };
+            const list = { inc: '', ast: '', bFull: '', debt: '', rlz: '', unrlz: '', qDebt: '' };
             let stats = { nw: 0, inc: 0, exp: 0, rlz: 0, unrlz: 0, bTotal: 0 };
             const sorted = [...records].sort((a, b) => a.month - b.month);
 
@@ -234,7 +260,7 @@
                 if (isAst) { list.ast += baseUI(r.amount, '', '', false, r.id); stats.nw += r.amount; }
                 else if (r.type === 'bill' && isExact) {
                     stats.bTotal += r.amount;
-                    list.billFull += `
+                    list.bFull += `
                         <div onclick="openModal(${r.id})" class="flex justify-between items-center p-5 card shadow-none border-gray-100 group clickable-row ${r.paid ? 'paid-item' : ''}">
                             <div class="flex items-center gap-4"><input type="checkbox" ${r.paid ? 'checked' : ''} onchange="event.stopPropagation(); toggleBillPaid(${r.id})" class="w-5 h-5 accent-black"><div><p class="font-bold text-sm">${r.name}</p></div></div>
                             <span class="font-mono font-black money-text">$${Math.round(r.amount).toLocaleString()}</span>
@@ -299,7 +325,7 @@
         function handleUIChange() { const t = document.getElementById('entry-type').value; document.getElementById('field-duration').className = (t === 'expense') ? 'block' : 'hidden'; document.getElementById('field-cost').className = (t === 'unrealized' || t === 'realized') ? 'block' : 'hidden'; }
         function closeModal() { document.getElementById('modal').classList.remove('active'); }
         function deleteEntry() { const id = document.getElementById('edit-id').value; if(confirm('確認刪除此項目？')) { records = records.filter(x => x.id != id); saveAndRender(); closeModal(); } }
-        function switchTab(t) { ['overview', 'debt-page', 'bill-page', 'investment'].forEach(x => { document.getElementById(`section-${x}`).classList.toggle('hidden', x !== t); document.getElementById(`tab-${x}`).className = x === t ? 'tab-active pb-4' : 'text-gray-400 pb-4 hover:text-black'; }); }
+        function switchTab(t) { ['overview', 'debt-page', 'bill-page', 'investment'].forEach(x => { document.getElementById(`section-${x}`).classList.toggle('hidden', x !== t); document.getElementById(`tab-${x}`).className = x === t ? 'tab-active pb-4' : 'text-gray-400 pb-4'; }); }
         function toggleElement(id, arrowId) { const el = document.getElementById(id); const arrow = document.getElementById(arrowId); el.classList.toggle('hidden'); arrow.innerText = el.classList.contains('hidden') ? '↓' : '↑'; if(id === 'chart-container' && !el.classList.contains('hidden')) updateChart(); }
         function exportData() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "finance_backup.json"); dl.click(); }
         function importData() { const input = document.createElement('input'); input.type = 'file'; input.onchange = e => { const file = e.target.files[0]; const reader = new FileReader(); reader.readAsText(file,'UTF-8'); reader.onload = re => { records = JSON.parse(re.target.result); saveAndRender(); alert('導入成功！'); } }; input.click(); }
