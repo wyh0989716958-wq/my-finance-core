@@ -1,358 +1,1075 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>資產負債表 V26 PRO</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@700&display=swap');
-        :root { --primary: #000000; --accent: #2563eb; }
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; color: #1a1a1a; overflow-x: hidden; -webkit-tap-highlight-color: transparent; font-size: 16px; }
-        .sidebar { width: 300px; background: white; border-right: 1px solid #eef2f6; height: 100vh; position: fixed; left: 0; top: 0; z-index: 1000; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; box-shadow: 4px 0 24px rgba(0,0,0,0.02); }
-        @media (max-width: 1024px) { .sidebar { transform: translateX(-100%); width: 85%; max-width: 320px; } .sidebar.active { transform: translateX(0); box-shadow: 20px 0 80px rgba(0,0,0,0.3); } .main-content { margin-left: 0 !important; padding: 1rem !important; padding-bottom: 180px !important; } .mobile-header { display: flex !important; } }
-        .main-content { margin-left: 300px; padding: 2.5rem; transition: all 0.4s; min-height: 100vh; }
-        .card { background: white; border-radius: 1.5rem; border: 1px solid #edf2f7; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
-        .money-text { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.05em; font-weight: 800; }
-        .tab-active { color: var(--primary); border-bottom: 4px solid var(--primary); font-weight: 900; }
-        #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 50000; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 1.25rem; }
-        .sortable-ghost { opacity: 0.3; background: #ebf5ff; border: 2px dashed #3b82f6; }
-        .drag-handle { cursor: grab; padding: 0.5rem; color: #cbd5e1; font-size: 20px; }
-        input, select { border: 1.5px solid #e2e8f0; padding: 16px; border-radius: 1rem; width: 100%; font-size: 17px !important; outline: none; }
-        .mask-mode .money-text { filter: blur(8px); pointer-events: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>資產負債表</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #0a0a0a;
+  --ink-60: rgba(10,10,10,0.6);
+  --ink-30: rgba(10,10,10,0.3);
+  --ink-10: rgba(10,10,10,0.1);
+  --ink-05: rgba(10,10,10,0.05);
+  --paper: #f8f8f6;
+  --white: #ffffff;
+  --accent: #1a56db;
+  --accent-light: #eff4ff;
+  --green: #0f7b3e;
+  --red: #b91c1c;
+  --red-light: #fef2f2;
+  --amber: #92400e;
+  --amber-light: #fffbeb;
+  --sidebar-w: 260px;
+  --header-h: 56px;
+  --r: 10px;
+  --r-lg: 14px;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', 'Noto Sans TC', sans-serif;
+  --border: 1px solid var(--ink-10);
+  --tr: 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+
+html { height: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+/* ── MOBILE HEADER ── */
+.mob-header {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: var(--white);
+  border-bottom: var(--border);
+  z-index: 950;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  -webkit-backdrop-filter: blur(0);
+}
+.mob-title { font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+.mob-menu-btn {
+  background: var(--ink); color: white; border: none;
+  border-radius: 8px; padding: 7px 16px;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+  cursor: pointer; font-family: var(--sans);
+}
+
+/* ── OVERLAY ── */
+.sb-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 970;
+}
+.sb-overlay.on { display: block; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--white);
+  border-right: var(--border);
+  height: 100vh;
+  position: fixed; left: 0; top: 0;
+  z-index: 980;
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  transition: transform var(--tr);
+}
+.sb-inner {
+  display: flex; flex-direction: column;
+  min-height: 100%; padding: 26px 20px 24px;
+}
+.brand { padding-bottom: 20px; border-bottom: var(--border); margin-bottom: 20px; }
+.brand-name { font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; }
+.brand-sub { font-size: 10px; color: var(--ink-30); margin-top: 4px; }
+.nav-lbl { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-30); margin-bottom: 7px; }
+.sb-select {
+  width: 100%; background: var(--paper); border: var(--border);
+  border-radius: var(--r); padding: 9px 12px;
+  font-family: var(--sans); font-size: 13px; color: var(--ink);
+  outline: none; -webkit-appearance: none; appearance: none;
+  cursor: pointer; margin-bottom: 18px;
+}
+.priv-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--paper); border: var(--border);
+  border-radius: var(--r); padding: 10px 12px; margin-bottom: 18px;
+}
+.priv-lbl { font-size: 12px; color: var(--ink-60); }
+.toggle {
+  width: 38px; height: 22px; border-radius: 11px;
+  background: var(--ink-10); border: none; cursor: pointer;
+  position: relative; transition: background var(--tr);
+  flex-shrink: 0;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; background: white;
+  border-radius: 50%; top: 3px; left: 3px;
+  transition: left var(--tr);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle.on::after { left: 19px; }
+.chart-btn {
+  width: 100%; background: none; border: var(--border);
+  border-radius: var(--r); padding: 9px 12px;
+  font-size: 12px; color: var(--ink-60); cursor: pointer;
+  text-align: left; display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--sans); margin-bottom: 8px;
+}
+.chart-wrap {
+  display: none; border: var(--border); border-radius: var(--r);
+  background: var(--paper); padding: 10px; margin-bottom: 18px; height: 138px;
+}
+.chart-wrap canvas { width: 100% !important; height: 118px !important; }
+.sb-spacer { flex: 1; min-height: 16px; }
+.sb-footer { padding-top: 18px; border-top: var(--border); display: flex; flex-direction: column; gap: 8px; }
+.sync-row { display: flex; align-items: center; gap: 6px; }
+.sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.sdot.blue { background: var(--accent); animation: blink 1.2s ease-in-out infinite; }
+.sdot.orange { background: #f59e0b; }
+.sdot.red { background: var(--red); }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
+.sync-lbl { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-30); }
+.btn-add {
+  background: var(--ink); color: white; border: none;
+  border-radius: var(--r); padding: 13px 16px;
+  font-family: var(--sans); font-size: 13px; font-weight: 500;
+  cursor: pointer; width: 100%; transition: transform 0.1s;
+}
+.btn-add:active { transform: scale(0.98); }
+.util-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btn-util {
+  background: var(--paper); border: var(--border);
+  border-radius: var(--r); padding: 9px;
+  font-size: 12px; color: var(--ink-60);
+  cursor: pointer; text-align: center; font-family: var(--sans);
+}
+
+/* ── MAIN ── */
+.main { margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
+.main-inner { padding: 32px 36px; display: flex; flex-direction: column; gap: 22px; flex: 1; }
+
+/* ── STAT CARDS ── */
+.stat-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr; gap: 10px; }
+.scard { background: var(--white); border: var(--border); border-radius: var(--r-lg); padding: 18px 18px; }
+.scard.hero { background: var(--ink); color: white; border-color: transparent; }
+.sc-lbl { font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-30); margin-bottom: 8px; font-weight: 500; }
+.scard.hero .sc-lbl { color: rgba(255,255,255,.38); }
+.sc-val { font-family: var(--mono); font-size: 17px; font-weight: 500; letter-spacing: -.03em; line-height: 1.2; word-break: break-all; }
+.sc-val.big { font-size: 20px; color: white; }
+.sc-val.grn { color: var(--green); }
+.sc-val.red { color: var(--red); }
+
+/* ── TAB BAR ── */
+.tab-bar {
+  display: flex; border-bottom: var(--border);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  font-family: var(--sans); font-size: 12px; font-weight: 400;
+  color: var(--ink-30); cursor: pointer;
+  white-space: nowrap; margin-bottom: -1px;
+  transition: color var(--tr), border-color var(--tr);
+  flex-shrink: 0;
+}
+.tab-btn.on { color: var(--ink); font-weight: 500; border-bottom-color: var(--ink); }
+
+/* ── PANELS ── */
+.panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.panel { background: var(--white); border: var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.panel-hd { padding: 12px 18px; border-bottom: var(--border); display: flex; align-items: center; gap: 9px; }
+.ph-bar { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+.ph-ttl { font-size: 10px; font-weight: 500; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-60); }
+
+.row-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 13px 18px; border-bottom: var(--border);
+  cursor: pointer; transition: background var(--tr); min-height: 48px;
+}
+.row-item:last-child { border-bottom: none; }
+.row-item:active { background: var(--paper); }
+.row-name { font-size: 13px; display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; overflow: hidden; }
+.row-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-amt { font-family: var(--mono); font-size: 13px; font-weight: 500; flex-shrink: 0; margin-left: 8px; }
+.drag-hdl { color: var(--ink-10); font-size: 15px; cursor: grab; flex-shrink: 0; }
+.row-item:active .drag-hdl { color: var(--ink-30); }
+.empty-msg { padding: 40px 20px; text-align: center; font-size: 12px; color: var(--ink-30); }
+
+/* ── DEBT ── */
+.debt-list { display: flex; flex-direction: column; gap: 10px; }
+.dcard {
+  background: var(--white); border: var(--border);
+  border-radius: var(--r-lg); padding: 15px 18px;
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; border-left: 3px solid var(--red); min-height: 56px;
+  transition: background var(--tr);
+}
+.dcard.last { border-left-color: #f59e0b; }
+.dcard:active { background: var(--paper); }
+.dc-name { font-size: 13px; font-weight: 500; }
+.dc-sub { font-size: 11px; color: var(--ink-30); margin-top: 3px; font-family: var(--mono); }
+.dc-badge {
+  font-size: 10px; font-weight: 500;
+  letter-spacing: .05em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 20px;
+  flex-shrink: 0; margin-left: 10px;
+}
+.dc-badge.act { background: var(--red-light); color: var(--red); }
+.dc-badge.lst { background: var(--amber-light); color: var(--amber); }
+
+/* ── BILL ── */
+.bill-sum {
+  background: var(--white); border: var(--border);
+  border-radius: var(--r-lg); padding: 18px 22px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px;
+}
+.bs-lbl { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-30); margin-bottom: 6px; }
+.bs-val { font-family: var(--mono); font-size: 26px; font-weight: 500; color: var(--accent); letter-spacing: -.04em; }
+.bs-cnt { font-family: var(--mono); font-size: 15px; color: var(--ink-60); text-align: right; }
+.bill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 10px; }
+.bcard {
+  background: var(--white); border: var(--border);
+  border-radius: var(--r-lg); padding: 16px;
+  transition: opacity var(--tr);
+}
+.bcard.paid { opacity: .32; }
+.bc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; }
+.bc-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bc-edit {
+  background: none; border: var(--border); border-radius: 6px;
+  padding: 3px 8px; font-size: 10px; color: var(--ink-30);
+  cursor: pointer; font-family: var(--sans); white-space: nowrap; flex-shrink: 0;
+}
+.bc-bot { display: flex; justify-content: space-between; align-items: center; }
+.bc-amt { font-family: var(--mono); font-size: 17px; font-weight: 500; letter-spacing: -.03em; }
+.chkbox {
+  width: 24px; height: 24px; border-radius: 7px;
+  border: 1.5px solid var(--ink-10); background: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 12px; color: white;
+  flex-shrink: 0; transition: all var(--tr);
+  -webkit-tap-highlight-color: transparent;
+}
+.chkbox.done { background: var(--ink); border-color: var(--ink); }
+
+/* ── INVEST ── */
+.inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.inv-tbl { width: 100%; border-collapse: collapse; }
+.inv-tbl td { padding: 12px 18px; border-bottom: var(--border); font-size: 13px; vertical-align: middle; }
+.inv-tbl tr:last-child td { border-bottom: none; }
+.inv-tbl td:last-child { text-align: right; font-family: var(--mono); font-weight: 500; white-space: nowrap; }
+.inv-sub { font-size: 10px; color: var(--ink-30); margin-top: 3px; font-family: var(--mono); }
+.inv-row { cursor: pointer; transition: background var(--tr); }
+.inv-row:active { background: var(--paper); }
+
+/* ── MODAL ── */
+.modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(10,10,10,.5);
+  z-index: 9999;
+  align-items: flex-end; justify-content: center;
+  padding: 0;
+}
+.modal-bg.open { display: flex; }
+.modal-box {
+  background: var(--white);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  border-top: var(--border);
+  width: 100%; max-width: 520px;
+  max-height: 94vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 24px 40px;
+  animation: slideup .22s ease;
+}
+@keyframes slideup { from{transform:translateY(30px);opacity:0} to{transform:none;opacity:1} }
+.modal-hdl { width: 36px; height: 4px; background: var(--ink-10); border-radius: 2px; margin: 0 auto 18px; }
+.modal-ttl { font-size: 15px; font-weight: 500; margin-bottom: 18px; letter-spacing: -.02em; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.form-fld { margin-bottom: 10px; }
+.form-fld label { display: block; font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-30); margin-bottom: 5px; }
+.form-fld input,
+.form-fld select {
+  width: 100%; background: var(--paper); border: var(--border);
+  border-radius: var(--r); padding: 11px 12px;
+  font-family: var(--sans); font-size: 16px; /* 16px prevents iOS zoom */
+  color: var(--ink); outline: none;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color var(--tr);
+}
+.form-fld input:focus,
+.form-fld select:focus { border-color: var(--accent); }
+.modal-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+.btn-mc {
+  background: var(--paper); border: var(--border);
+  border-radius: var(--r); padding: 13px;
+  font-family: var(--sans); font-size: 14px; color: var(--ink-60);
+  cursor: pointer;
+}
+.btn-ms {
+  background: var(--ink); color: white; border: none;
+  border-radius: var(--r); padding: 13px;
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: transform .1s;
+}
+.btn-ms:active { transform: scale(.98); }
+.btn-del {
+  display: none; width: 100%; background: none; border: none;
+  font-family: var(--sans); font-size: 11px; color: var(--ink-30);
+  text-decoration: underline; cursor: pointer;
+  text-align: center; margin-top: 14px; padding: 4px;
+}
+
+/* ── PRIVACY MASK ── */
+.masked .mask-target { filter: blur(8px); pointer-events: none; user-select: none; }
+
+/* ── SORTABLE ── */
+.sortable-ghost { opacity: .25; background: var(--accent-light) !important; }
+
+/* ── DELTA BADGE ── */
+.delta {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 2px 6px;
+  border-radius: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 6px;
+  line-height: 1.4;
+}
+.delta.up   { color: var(--green); background: rgba(15,123,62,0.08); }
+.delta.down { color: var(--red);   background: rgba(185,28,28,0.07); }
+.delta.flat { color: var(--ink-30); background: var(--ink-05); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); box-shadow: 24px 0 60px rgba(0,0,0,.18); }
+  .main { margin-left: 0; }
+  .main-inner { padding: calc(var(--header-h) + 20px) 16px 48px; }
+  .mob-header { display: flex; }
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .stat-row .scard:first-child { grid-column: span 2; }
+  .panel-grid, .inv-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .stat-row { gap: 8px; }
+  .scard { padding: 14px; }
+  .sc-val { font-size: 15px; }
+  .sc-val.big { font-size: 18px; }
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+  .main-inner { gap: 16px; }
+}
+@media (max-width: 380px) {
+  .bill-grid { grid-template-columns: 1fr; }
+  .tab-btn { padding: 10px 11px; font-size: 11px; }
+  .modal-box { padding: 18px 16px 36px; }
+}
+/* Desktop: modal centered */
+@media (min-width: 1025px) {
+  .modal-bg { align-items: center; padding: 20px; }
+  .modal-box { border-radius: var(--r-lg); border: var(--border); max-width: 440px; max-height: 88vh; }
+}
+</style>
 </head>
-<body class="flex flex-col lg:flex-row">
+<body>
 
-    <header class="mobile-header hidden bg-white border-b p-4 justify-between items-center sticky top-0 z-[600] shadow-sm">
-        <h1 class="text-2xl font-black italic">資產負債表</h1>
-        <button onclick="toggleSidebar()" class="px-5 py-2 bg-black text-white rounded-2xl font-bold text-xs active:scale-95 transition">選單 MENU</button>
-    </header>
+<!-- Mobile Header -->
+<header class="mob-header">
+  <span class="mob-title">資產負債表</span>
+  <button class="mob-menu-btn" onclick="toggleSidebar()">選單</button>
+</header>
+<div class="sb-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
 
-    <aside id="sidebar" class="sidebar p-7">
-        <div class="flex flex-col h-full w-full">
-            <div class="border-b border-gray-100 pb-6 mb-8">
-                <h1 class="text-2xl font-black tracking-tight">資產負債表</h1>
-                <p id="last-update" class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Status: Standby</p>
-            </div>
-            <div class="space-y-8 flex-1">
-                <div>
-                    <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">隱私模式</label>
-                    <div class="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <span class="text-xs font-bold">隱藏金額數字</span>
-                        <input type="checkbox" id="privacy-toggle" onchange="togglePrivacy()" class="w-10 h-5 appearance-none bg-gray-300 rounded-full checked:bg-blue-600 transition-all relative cursor-pointer before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:left-5 before:transition-all">
-                    </div>
-                </div>
-                <div>
-                    <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">報表月份</label>
-                    <select id="month-selector" onchange="changeMonth()" class="font-black text-xl p-4 rounded-2xl border-none bg-gray-50 text-blue-600 shadow-sm"></select>
-                </div>
-                <div class="space-y-3">
-                    <button onclick="toggleElement('chart-container', 'chart-arrow')" class="w-full flex justify-between items-center bg-zinc-900 text-white p-4 rounded-2xl text-xs font-bold shadow-lg">
-                        <span>資產走勢分析</span><span id="chart-arrow">↓</span>
-                    </button>
-                    <div id="chart-container" class="hidden h-48 bg-white p-2 rounded-2xl border shadow-inner"><canvas id="netWorthChart"></canvas></div>
-                </div>
-            </div>
-            <div class="pt-8 space-y-4 pb-10">
-                <div id="sync-status" class="text-center text-blue-600 uppercase italic text-[10px] font-black tracking-widest animate-pulse">Syncing...</div>
-                <button onclick="window.openFinanceModal()" class="w-full bg-blue-600 text-white py-6 rounded-3xl text-lg font-black shadow-2xl hover:bg-blue-700 active:scale-95 transition-all">＋ 新增財務項目</button>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="exportData()" class="bg-gray-100 text-[11px] font-bold py-4 rounded-2xl uppercase">備份</button>
-                    <button onclick="importData()" class="bg-gray-100 text-[11px] font-bold py-4 rounded-2xl uppercase">還原</button>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <main id="main-ui" class="main-content flex-1 space-y-8">
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
-            <div class="card bg-zinc-900 text-white col-span-2 lg:col-span-1 border-l-8 border-black">
-                <p class="text-[11px] font-bold text-gray-500 uppercase mb-2 tracking-widest">期末淨資產</p>
-                <h2 id="stat-networth" class="text-3xl font-black money-text">$0</h2>
-            </div>
-            <div class="card border-b-4 border-green-500"><p class="text-[11px] font-bold text-gray-400 uppercase mb-2">收入</p><h2 id="stat-income" class="text-2xl font-black text-green-600 money-text">$0</h2></div>
-            <div class="card border-b-4 border-red-500"><p class="text-[11px] font-bold text-gray-400 uppercase mb-2">支出</p><h2 id="stat-expense" class="text-2xl font-black text-red-500 money-text">$0</h2></div>
-            <div class="card"><p class="text-[11px] font-bold text-gray-400 uppercase mb-2">已實現</p><h2 id="stat-realized" class="text-2xl font-black money-text">$0</h2></div>
-            <div class="card"><p class="text-[11px] font-bold text-gray-400 uppercase mb-2">未實現</p><h2 id="stat-unrealized" class="text-2xl font-black money-text">$0</h2></div>
-        </div>
-
-        <div class="flex gap-8 text-[13px] font-black uppercase tracking-widest border-b border-gray-100 overflow-x-auto whitespace-nowrap scrollbar-hide py-2">
-            <button onclick="switchTab('overview')" id="tab-overview" class="tab-active pb-5">資產收入</button>
-            <button onclick="switchTab('debt-page')" id="tab-debt-page" class="text-gray-400 pb-5">債務監控</button>
-            <button onclick="switchTab('bill-page')" id="tab-bill-page" class="text-gray-400 pb-5">待繳卡費</button>
-            <button onclick="switchTab('investment')" id="tab-investment" class="text-gray-400 pb-5">投資損益</button>
-        </div>
-
-        <div id="section-overview" class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-            <div class="space-y-5"><h3 class="text-[12px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-green-500 pl-4">當月收入</h3><div id="list-income" class="card p-2 divide-y divide-gray-50"></div></div>
-            <div class="space-y-5"><h3 class="text-[12px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-black pl-4">資產結算 (可拖移)</h3><div id="list-assets" class="card p-2 divide-y divide-gray-50"></div></div>
-        </div>
-
-        <div id="section-debt-page" class="hidden space-y-6"><div id="list-debt-full" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div></div>
-        
-        <div id="section-bill-page" class="hidden space-y-6">
-            <div class="card bg-blue-50 border-blue-200 border-2 shadow-inner">
-                <div class="flex justify-between items-center">
-                    <div><p class="text-[11px] font-black text-blue-400 uppercase mb-1">本月總待繳金額</p><h3 id="stat-bill-total" class="text-4xl font-black text-blue-600 money-text">$0</h3></div>
-                    <div class="text-right"><p class="text-[11px] font-black text-gray-400 uppercase mb-1">進度</p><p id="stat-bill-count" class="text-lg font-black text-gray-600">0 / 0</p></div>
-                </div>
-            </div>
-            <div id="list-bills-full" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
-        </div>
-
-        <div id="section-investment" class="hidden space-y-8">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div class="space-y-4"><h4 class="text-xs font-black text-gray-400 uppercase pl-2">已實現獲利清單</h4><div class="card p-0 overflow-hidden"><table class="w-full text-lg"><tbody id="table-realized" class="divide-y"></tbody></table></div></div>
-                <div class="space-y-4"><h4 class="text-xs font-black text-gray-400 uppercase pl-2">未實現損益監控</h4><div class="card p-0 overflow-hidden"><table class="w-full text-lg"><tbody id="table-unrealized" class="divide-y"></tbody></table></div></div>
-            </div>
-        </div>
-    </main>
-
-    <div id="modal" onclick="if(event.target==this)window.closeFinanceModal()">
-        <div class="bg-white rounded-[2.5rem] p-8 lg:p-12 max-w-lg w-full shadow-2xl relative" onclick="event.stopPropagation()">
-            <h2 id="modal-title" class="text-2xl font-black mb-8 italic uppercase tracking-tighter text-black">編輯明細</h2>
-            <form id="finance-form" class="space-y-6">
-                <input type="hidden" id="edit-id">
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="text-[11px] font-black text-gray-400 uppercase mb-2 block">月份</label><select id="entry-month" class="bg-gray-50 font-bold"></select></div>
-                    <div><label class="text-[11px] font-black text-gray-400 uppercase mb-2 block">類別</label>
-                        <select id="entry-type" onchange="handleUIChange()" class="bg-gray-50 font-bold text-blue-600">
-                            <option value="asset">資產 (存量)</option>
-                            <option value="income">收入 (當月)</option>
-                            <option value="expense">債務 (分期)</option>
-                            <option value="bill">待繳卡費</option>
-                            <option value="realized">投資：已實現</option>
-                            <option value="unrealized">投資：未實現</option>
-                        </select>
-                    </div>
-                </div>
-                <div><label class="text-[11px] font-black text-gray-400 uppercase mb-2 block">項目名稱</label><input type="text" id="entry-name" required class="bg-gray-50 border-none font-bold"></div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label id="label-amount" class="text-[11px] font-black text-gray-400 uppercase mb-2 block">金額</label><input type="number" id="entry-amount" required class="bg-gray-50 border-none font-mono font-bold"></div>
-                    <div id="field-cost" class="hidden"><label class="text-[11px] font-black text-gray-400 uppercase mb-2 block">原始成本</label><input type="number" id="entry-cost" class="bg-gray-50 border-none"></div>
-                    <div id="field-duration" class="hidden"><label class="text-[11px] font-black text-gray-400 uppercase mb-2 block">結束月份</label><select id="entry-end-month" class="bg-gray-50"></select></div>
-                </div>
-                <div class="flex gap-4 pt-6">
-                    <button type="button" onclick="window.closeFinanceModal()" class="flex-1 bg-gray-100 py-5 rounded-3xl font-black text-gray-500">取消</button>
-                    <button type="submit" class="flex-1 bg-black text-white py-5 rounded-3xl font-black shadow-xl">儲存並同步</button>
-                </div>
-                <div id="delete-btn-container" class="text-center mt-4 hidden"><button type="button" onclick="deleteEntry()" class="text-red-400 text-xs font-black underline uppercase">徹底刪除</button></div>
-            </form>
-        </div>
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-inner">
+    <div class="brand">
+      <div class="brand-name">資產負債表</div>
+      <div class="brand-sub" id="last-update">準備就緒</div>
     </div>
 
-    <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxI4RRRvTJNk_SNH0LkDywLXDPy7k-WxCHSEzuJg7LI0m08BZIsIi-aYq1nKinIERKx0Q/exec';
-        const mSel = document.getElementById('month-selector');
-        const startM = document.getElementById('entry-month');
-        const endM = document.getElementById('entry-end-month');
-        const curM = new Date().getMonth() + 1;
+    <div class="nav-lbl">報表月份</div>
+    <select class="sb-select" id="month-selector" onchange="changeMonth()"></select>
 
-        for(let i=1; i<=12; i++) {
-            mSel.innerHTML += `<option value="${i}">${i}月 結算報表</option>`;
-            startM.innerHTML += `<option value="${i}">${i}月</option>`;
-            endM.innerHTML += `<option value="${i}">${i}月</option>`;
+    <div class="nav-lbl">隱私模式</div>
+    <div class="priv-row">
+      <span class="priv-lbl">隱藏金額數字</span>
+      <button class="toggle" id="priv-btn" onclick="togglePrivacy()"></button>
+    </div>
+
+    <div class="nav-lbl">資產走勢</div>
+    <button class="chart-btn" onclick="toggleChart()">
+      <span id="chart-btn-txt">顯示折線圖</span><span id="chart-arrow">↓</span>
+    </button>
+    <div class="chart-wrap" id="chart-container">
+      <canvas id="netWorthChart"></canvas>
+    </div>
+
+    <div class="sb-spacer"></div>
+
+    <div class="sb-footer">
+      <div class="sync-row">
+        <span class="sdot blue" id="sdot"></span>
+        <span class="sync-lbl" id="sync-lbl">同步中...</span>
+      </div>
+      <button class="btn-add" onclick="openModal()">＋ 新增財務項目</button>
+      <div class="util-grid">
+        <button class="btn-util" onclick="exportData()">備份</button>
+        <button class="btn-util" onclick="importData()">還原</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="main-inner" id="main-ui">
+
+    <div class="stat-row">
+      <div class="scard hero">
+        <div class="sc-lbl">期末淨資產</div>
+        <div class="sc-val big mask-target" id="s-nw">$0</div>
+      </div>
+      <div class="scard">
+        <div class="sc-lbl">當月收入</div>
+        <div class="sc-val grn mask-target" id="s-inc">$0</div>
+      </div>
+      <div class="scard">
+        <div class="sc-lbl">債務支出</div>
+        <div class="sc-val red mask-target" id="s-exp">$0</div>
+      </div>
+      <div class="scard">
+        <div class="sc-lbl">已實現損益</div>
+        <div class="sc-val mask-target" id="s-rlz">$0</div>
+      </div>
+      <div class="scard">
+        <div class="sc-lbl">未實現損益</div>
+        <div class="sc-val mask-target" id="s-unrlz">$0</div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="switchTab('overview',this)">資產收入</button>
+      <button class="tab-btn" onclick="switchTab('debt',this)">債務監控</button>
+      <button class="tab-btn" onclick="switchTab('bill',this)">待繳卡費</button>
+      <button class="tab-btn" onclick="switchTab('invest',this)">投資損益</button>
+    </div>
+
+    <!-- Overview -->
+    <div id="sec-overview">
+      <div class="panel-grid">
+        <div class="panel">
+          <div class="panel-hd"><div class="ph-bar" style="background:var(--green)"></div><span class="ph-ttl">當月收入</span></div>
+          <div id="list-income"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><div class="ph-bar" style="background:var(--ink)"></div><span class="ph-ttl">資產結算</span></div>
+          <div id="list-assets"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Debt -->
+    <div id="sec-debt" style="display:none">
+      <div class="debt-list" id="list-debt"></div>
+    </div>
+
+    <!-- Bill -->
+    <div id="sec-bill" style="display:none">
+      <div class="bill-sum">
+        <div>
+          <div class="bs-lbl">本月總待繳</div>
+          <div class="bs-val mask-target" id="s-bill-total">$0</div>
+        </div>
+        <div>
+          <div class="bs-lbl" style="text-align:right">繳費進度</div>
+          <div class="bs-cnt" id="s-bill-count">0 / 0</div>
+        </div>
+      </div>
+      <div class="bill-grid" id="list-bills"></div>
+    </div>
+
+    <!-- Invest -->
+    <div id="sec-invest" style="display:none">
+      <div class="inv-grid">
+        <div class="panel">
+          <div class="panel-hd"><div class="ph-bar" style="background:var(--accent)"></div><span class="ph-ttl">已實現獲利</span></div>
+          <table class="inv-tbl"><tbody id="t-realized"></tbody></table>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><div class="ph-bar" style="background:#7c3aed"></div><span class="ph-ttl">未實現損益</span></div>
+          <table class="inv-tbl"><tbody id="t-unrealized"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-hdl"></div>
+    <div class="modal-ttl" id="modal-ttl">新增財務項目</div>
+
+    <div class="form-row">
+      <div class="form-fld"><label>月份</label><select id="f-month"></select></div>
+      <div class="form-fld"><label>類別</label>
+        <select id="f-type" onchange="onTypeChange()">
+          <option value="asset">資產 (存量)</option>
+          <option value="income">收入 (當月)</option>
+          <option value="expense">債務 (分期)</option>
+          <option value="bill">待繳卡費</option>
+          <option value="realized">投資：已實現</option>
+          <option value="unrealized">投資：未實現</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-fld">
+      <label>項目名稱</label>
+      <input type="text" id="f-name" placeholder="例：台幣活存、薪資...">
+    </div>
+
+    <div class="form-row">
+      <div class="form-fld">
+        <label id="lbl-amt">金額</label>
+        <input type="number" id="f-amt" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="form-fld" id="f-cost-wrap" style="display:none">
+        <label>原始成本</label>
+        <input type="number" id="f-cost" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="form-fld" id="f-end-wrap" style="display:none">
+        <label>結束月份</label>
+        <select id="f-end"></select>
+      </div>
+    </div>
+
+    <div class="modal-acts">
+      <button class="btn-mc" onclick="closeModal()">取消</button>
+      <button class="btn-ms" onclick="submitForm()">儲存並同步</button>
+    </div>
+    <button class="btn-del" id="del-btn" onclick="deleteEntry()">徹底刪除此項目</button>
+  </div>
+</div>
+
+<script>
+/* ══ CONFIG ══ */
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxI4RRRvTJNk_SNH0LkDywLXDPy7k-WxCHSEzuJg7LI0m08BZIsIi-aYq1nKinIERKx0Q/exec';
+const STORAGE_KEY = 'finance_records_v26'; // unchanged — keeps old local data
+
+let records = [];
+let editId = null;
+let privacyOn = false;
+let myChart = null;
+let syncLock = false;
+let sortableAssets = null;
+let sortableBills = null;
+
+/* ══ MONTH SELECTS INIT ══ */
+const mSel = document.getElementById('month-selector');
+const fMonth = document.getElementById('f-month');
+const fEnd = document.getElementById('f-end');
+const curM = new Date().getMonth() + 1;
+
+for (let i = 1; i <= 12; i++) {
+  mSel.insertAdjacentHTML('beforeend', `<option value="${i}">${i}月 結算報表</option>`);
+  fMonth.insertAdjacentHTML('beforeend', `<option value="${i}">${i}月</option>`);
+  fEnd.insertAdjacentHTML('beforeend', `<option value="${i}">${i}月</option>`);
+}
+mSel.value = curM;
+fMonth.value = curM;
+fEnd.value = curM;
+
+/* ══ HELPERS ══ */
+function fmt(n) {
+  return '$' + Math.round(Number(n) || 0).toLocaleString('zh-TW');
+}
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Normalise a record so old/new cloud data both work safely
+function normalise(r) {
+  return {
+    id:       r.id ?? (Date.now() + Math.random()),
+    month:    Number(r.month)    || curM,
+    endMonth: Number(r.endMonth) || Number(r.month) || curM,
+    type:     r.type || 'asset',
+    name:     r.name || '',
+    amount:   Number(r.amount)   || 0,
+    cost:     Number(r.cost)     || 0,
+    paid:     !!r.paid,
+  };
+}
+
+/* ══ DELTA HELPER ══ */
+// deriveFn: optional function(prevRecord)=>number for computed comparisons
+function deltaBadge(type, name, curAmt, selM, deriveFn) {
+  const prevM = selM === 1 ? 12 : selM - 1;
+  const prev = records.find(r =>
+    r.type === type && r.month === prevM &&
+    r.name.trim().toLowerCase() === name.trim().toLowerCase()
+  );
+  if (!prev) return '<span class="delta flat">NEW</span>';
+  const prevAmt = deriveFn ? deriveFn(prev) : prev.amount;
+  const diff = curAmt - prevAmt;
+  if (diff === 0) return '<span class="delta flat">—</span>';
+  const sign = diff > 0 ? '▲' : '▼';
+  const cls  = diff > 0 ? 'up' : 'down';
+  const val  = '$' + Math.abs(Math.round(diff)).toLocaleString('zh-TW');
+  return `<span class="delta ${cls} mask-target">${sign}&nbsp;${val}</span>`;
+}
+
+/* ══ SYNC STATE UI ══ */
+function setSyncState(state) {
+  const dot = document.getElementById('sdot');
+  const lbl = document.getElementById('sync-lbl');
+  const lu  = document.getElementById('last-update');
+  dot.className = 'sdot';
+  const map = { loading:'blue', uploading:'blue', offline:'orange', error:'red' };
+  if (map[state]) dot.classList.add(map[state]);
+  const txt = { loading:'連接中...', uploading:'上傳中...', ok:'已同步', offline:'離線模式', error:'同步失敗' };
+  lbl.textContent = txt[state] || state;
+  if (state === 'ok') {
+    lu.textContent = '更新 ' + new Date().toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' });
+  }
+}
+
+/* ══ SIDEBAR ══ */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sb-overlay').classList.toggle('on');
+}
+
+/* ══ PRIVACY ══ */
+function togglePrivacy() {
+  privacyOn = !privacyOn;
+  document.getElementById('priv-btn').classList.toggle('on', privacyOn);
+  document.getElementById('main-ui').classList.toggle('masked', privacyOn);
+}
+
+/* ══ CHART ══ */
+function toggleChart() {
+  const wrap = document.getElementById('chart-container');
+  const open = wrap.style.display !== 'block';
+  wrap.style.display = open ? 'block' : 'none';
+  document.getElementById('chart-arrow').textContent = open ? '↑' : '↓';
+  document.getElementById('chart-btn-txt').textContent = open ? '隱藏折線圖' : '顯示折線圖';
+  if (open) updateChart();
+}
+function updateChart() {
+  const data = Array.from({ length: 12 }, (_, i) =>
+    records.filter(r => r.type === 'asset' && r.month === i + 1)
+           .reduce((a, b) => a + Number(b.amount), 0)
+  );
+  if (myChart) myChart.destroy();
+  myChart = new Chart(document.getElementById('netWorthChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: ['1','2','3','4','5','6','7','8','9','10','11','12'],
+      datasets: [{
+        data,
+        borderColor: '#0a0a0a', borderWidth: 1.5,
+        tension: 0.4, fill: true,
+        backgroundColor: 'rgba(10,10,10,0.04)',
+        pointRadius: 3, pointBackgroundColor: '#0a0a0a',
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { display: false },
+        x: {
+          grid: { display: false }, border: { display: false },
+          ticks: { font: { size: 9, family:"'DM Mono',monospace" }, color: 'rgba(10,10,10,0.3)' }
         }
-        mSel.value = curM.toString();
+      }
+    }
+  });
+}
 
-        let records = [];
-        let myChart;
-        let syncLock = false;
+/* ══ TABS ══ */
+function switchTab(name, btn) {
+  ['overview','debt','bill','invest'].forEach(t =>
+    document.getElementById('sec-' + t).style.display = 'none'
+  );
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('sec-' + name).style.display = 'block';
+  if (btn) btn.classList.add('on');
+}
 
-        // 拖拽功能：支援資產與卡費
-        const setupSortable = (elId, type) => {
-            const el = document.getElementById(elId);
-            Sortable.create(el, {
-                animation: 180, handle: '.drag-handle', ghostClass: 'sortable-ghost',
-                onEnd: function() {
-                    const newIds = Array.from(el.children).map(child => parseFloat(child.dataset.id));
-                    const currentMonth = parseInt(mSel.value);
-                    const otherRecs = records.filter(r => !(r.type === type && r.month === currentMonth));
-                    const sortedItems = newIds.map(id => records.find(r => r.id === id));
-                    records = [...otherRecs, ...sortedItems];
-                    saveAndRender();
-                }
-            });
-        };
+/* ══ MODAL ══ */
+function openModal(id = null) {
+  editId = id;
+  // reset fields
+  ['f-name','f-amt','f-cost'].forEach(k => document.getElementById(k).value = '');
+  document.getElementById('f-month').value = mSel.value;
+  document.getElementById('f-end').value   = mSel.value;
+  document.getElementById('f-type').value  = 'asset';
+  document.getElementById('modal-ttl').textContent = id ? '編輯項目' : '新增財務項目';
+  document.getElementById('del-btn').style.display = id ? 'block' : 'none';
 
-        window.openFinanceModal = function(id = null) {
-            const modal = document.getElementById('modal');
-            document.getElementById('finance-form').reset();
-            document.getElementById('edit-id').value = id || '';
-            document.getElementById('delete-btn-container').classList.toggle('hidden', !id);
-            document.getElementById('entry-month').value = mSel.value;
-            if(id) {
-                const r = records.find(x => x.id == id);
-                if(r) {
-                    document.getElementById('entry-type').value = r.type;
-                    document.getElementById('entry-name').value = r.name;
-                    document.getElementById('entry-amount').value = r.amount;
-                    document.getElementById('entry-cost').value = r.cost || 0;
-                    document.getElementById('entry-end-month').value = r.endMonth || r.month;
-                }
-            }
-            handleUIChange();
-            modal.style.display = 'flex';
-        };
+  if (id) {
+    const r = records.find(x => String(x.id) === String(id));
+    if (r) {
+      document.getElementById('f-type').value  = r.type;
+      document.getElementById('f-name').value  = r.name;
+      document.getElementById('f-amt').value   = r.amount;
+      document.getElementById('f-cost').value  = r.cost || 0;
+      document.getElementById('f-month').value = r.month;
+      document.getElementById('f-end').value   = r.endMonth || r.month;
+    }
+  }
+  onTypeChange();
+  document.getElementById('modal').classList.add('open');
+  if (window.innerWidth > 1024)
+    setTimeout(() => document.getElementById('f-name').focus(), 80);
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editId = null;
+}
+function onTypeChange() {
+  const t = document.getElementById('f-type').value;
+  document.getElementById('f-cost-wrap').style.display = (t === 'unrealized' || t === 'realized') ? 'block' : 'none';
+  document.getElementById('f-end-wrap').style.display  = t === 'expense' ? 'block' : 'none';
+  document.getElementById('lbl-amt').textContent = t === 'unrealized' ? '目前市價' : '金額';
+}
+function submitForm() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('f-name').focus(); return; }
+  const data = {
+    month:    parseInt(document.getElementById('f-month').value),
+    endMonth: parseInt(document.getElementById('f-end').value || document.getElementById('f-month').value),
+    type:     document.getElementById('f-type').value,
+    name,
+    amount:   Number(document.getElementById('f-amt').value)  || 0,
+    cost:     Number(document.getElementById('f-cost').value) || 0,
+    paid:     editId ? (records.find(x => String(x.id) === String(editId))?.paid || false) : false,
+  };
+  if (editId) {
+    const idx = records.findIndex(x => String(x.id) === String(editId));
+    if (idx >= 0) records[idx] = { ...data, id: records[idx].id };
+  } else {
+    records.push({ id: Date.now() + Math.random(), ...data });
+  }
+  saveAndRender();
+  closeModal();
+}
+function deleteEntry() {
+  if (confirm('確定要刪除此項目？此操作無法復原。')) {
+    records = records.filter(x => String(x.id) !== String(editId));
+    saveAndRender();
+    closeModal();
+  }
+}
 
-        window.closeFinanceModal = function() { document.getElementById('modal').style.display = 'none'; };
-        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+/* ══ BILL TOGGLE ══ */
+function toggleBill(id) {
+  const r = records.find(x => String(x.id) === String(id));
+  if (r) { r.paid = !r.paid; saveAndRender(); }
+}
 
-        async function loadFromCloud() {
-            const status = document.getElementById('sync-status');
-            try {
-                const res = await fetch(SCRIPT_URL);
-                const data = await res.json();
-                const map = new Map();
-                data.forEach(item => map.set(item.id, item));
-                records = Array.from(map.values());
-                status.innerText = "CLOUD READY";
-                status.className = "text-center text-green-500 italic text-[10px] font-black";
-                renderAll();
-                setupSortable('list-assets', 'asset');
-                setupSortable('list-bills-full', 'bill');
-            } catch (e) {
-                records = JSON.parse(localStorage.getItem('finance_records_v26')) || [];
-                status.innerText = "OFFLINE";
-                renderAll();
-            }
-        }
+/* ══ RENDER ══ */
+function renderAll() {
+  const selM = parseInt(mSel.value);
+  let stats = { nw:0, inc:0, exp:0, rlz:0, unrlz:0, billTotal:0, billPaid:0, billCount:0 };
+  let h = { inc:'', ast:'', bill:'', debt:'', rlz:'', unrlz:'' };
 
-        async function saveAndRender() {
-            localStorage.setItem('finance_records_v26', JSON.stringify(records));
-            renderAll();
-            const status = document.getElementById('sync-status');
-            status.innerText = "UPLOADING...";
-            status.className = "text-center text-blue-500 italic text-[10px] font-black animate-pulse";
-            setTimeout(async () => {
-                if (syncLock) return;
-                syncLock = true;
-                try {
-                    await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(records) });
-                    status.innerText = "SUCCESS";
-                    status.className = "text-center text-green-500 italic text-[10px] font-black";
-                    document.getElementById('last-update').innerText = "UPDATED: " + new Date().toLocaleTimeString();
-                } catch (e) { status.innerText = "SYNC ERROR"; } finally { syncLock = false; }
-            }, 1500);
-        }
+  records.forEach(r => {
+    const exact = r.month === selM;
+    const debtOn = r.type === 'expense' && selM >= r.month && selM <= r.endMonth;
 
-        function togglePrivacy() { document.getElementById('main-ui').classList.toggle('mask-mode', document.getElementById('privacy-toggle').checked); }
-        
-        function changeMonth() {
-            const targetM = parseInt(mSel.value);
-            const prevM = targetM === 1 ? 12 : targetM - 1;
-            const hasDataInTarget = records.some(r => (r.type === 'asset' || r.type === 'bill' || r.type === 'unrealized') && r.month === targetM);
-            
-            if (!hasDataInTarget) {
-                const prevItems = records.filter(r => (r.type === 'asset' || r.type === 'bill' || r.type === 'unrealized') && r.month === prevM);
-                if (prevItems.length > 0) {
-                    const inherited = prevItems.map((pi, idx) => ({
-                        ...pi, id: Date.now() + Math.random() + idx, month: targetM, endMonth: pi.type === 'expense' ? pi.endMonth : targetM,
-                        amount: (pi.type === 'bill' || pi.type === 'unrealized') ? 0 : pi.amount,
-                        paid: false 
-                    }));
-                    records = [...records, ...inherited];
-                    saveAndRender();
-                }
-            }
-            renderAll();
-            if(window.innerWidth < 1024) toggleSidebar();
-        }
+    if (r.type === 'asset' && exact) {
+      stats.nw += r.amount;
+      const db = deltaBadge('asset', r.name, r.amount, selM);
+      h.ast += `<div class="row-item" data-id="${r.id}" onclick="openModal(${r.id})">
+        <span class="row-name"><span class="drag-hdl">⠿</span><span>${esc(r.name)}</span></span>
+        <span style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${db}
+          <span class="row-amt mask-target">${fmt(r.amount)}</span>
+        </span></div>`;
 
-        function renderAll() {
-            const selM = parseInt(mSel.value);
-            const list = { inc: '', ast: '', bFull: '', debt: '', rlz: '', unrlz: '' };
-            let stats = { nw: 0, inc: 0, exp: 0, rlz: 0, unrlz: 0, billTotal: 0, billPaidCount: 0, billTotalCount: 0 };
+    } else if (r.type === 'income' && exact) {
+      stats.inc += r.amount;
+      const db = deltaBadge('income', r.name, r.amount, selM);
+      h.inc += `<div class="row-item" onclick="openModal(${r.id})">
+        <span class="row-name"><span>${esc(r.name)}</span></span>
+        <span style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${db}
+          <span class="row-amt mask-target" style="color:var(--green)">${fmt(r.amount)}</span>
+        </span></div>`;
 
-            records.forEach(r => {
-                const isExact = r.month === selM;
-                const isAst = r.type === 'asset' && isExact;
-                const isDebtActive = r.type === 'expense' && selM >= r.month && selM <= r.endMonth;
+    } else if (r.type === 'bill' && exact) {
+      stats.billCount++;
+      if (!r.paid) stats.billTotal += r.amount; else stats.billPaid++;
+      const db = deltaBadge('bill', r.name, r.amount, selM);
+      h.bill += `<div class="bcard ${r.paid?'paid':''}" data-id="${r.id}">
+        <div class="bc-top">
+          <span class="bc-name">${esc(r.name)}</span>
+          <button class="bc-edit" onclick="event.stopPropagation();openModal(${r.id})">編輯</button>
+        </div>
+        <div class="bc-bot" style="align-items:flex-end">
+          <div>
+            <span class="bc-amt mask-target">${fmt(r.amount)}</span>
+            <div style="margin-top:4px">${db}</div>
+          </div>
+          <div class="chkbox ${r.paid?'done':''}" onclick="event.stopPropagation();toggleBill(${r.id})">${r.paid?'✓':''}</div>
+        </div></div>`;
 
-                if (isAst) {
-                    list.ast += `<div data-id="${r.id}" class="flex justify-between items-center p-5 group transition"><div class="flex items-center gap-3"><span class="drag-handle text-gray-200 group-hover:text-gray-400 transition">⠿</span><p onclick="window.openFinanceModal(${r.id})" class="font-bold cursor-pointer text-lg">${r.name}</p></div><span onclick="window.openFinanceModal(${r.id})" class="font-black money-text text-xl cursor-pointer">$${Math.round(r.amount).toLocaleString()}</span></div>`;
-                    stats.nw += Number(r.amount);
-                } else if (r.type === 'income' && isExact) {
-                    list.inc += `<div onclick="window.openFinanceModal(${r.id})" class="flex justify-between items-center p-5 cursor-pointer"><p class="font-bold text-lg">${r.name}</p><span class="font-black text-green-600 money-text text-xl">$${Math.round(r.amount).toLocaleString()}</span></div>`;
-                    stats.inc += Number(r.amount);
-                } else if (r.type === 'bill' && isExact) {
-                    stats.billTotalCount++;
-                    if(!r.paid) stats.billTotal += Number(r.amount); else stats.billPaidCount++;
-                    list.bFull += `<div data-id="${r.id}" class="flex flex-col p-6 card shadow-sm active:scale-98 transition ${r.paid ? 'opacity-25 grayscale' : ''}"><div class="flex justify-between items-start mb-3"><div class="flex items-center gap-3"><span class="drag-handle text-gray-200">⠿</span><input type="checkbox" ${r.paid ? 'checked' : ''} onchange="event.stopPropagation(); toggleBillPaid(${r.id})" class="w-7 h-7 accent-black rounded-lg"></div><button onclick="window.openFinanceModal(${r.id})" class="text-[11px] font-black uppercase text-gray-300">Edit</button></div><p class="font-black text-lg mb-1">${r.name}</p><span class="font-black font-mono money-text text-2xl">$${Math.round(r.amount).toLocaleString()}</span></div>`;
-                } else if (r.type === 'expense' && isDebtActive) {
-                    stats.exp += Number(r.amount);
-                    const isLastMonth = selM === r.endMonth;
-                    const tagStyle = isLastMonth ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-red-50 text-red-600 border-red-100';
-                    const tagText = isLastMonth ? '✨ 本月還清' : '還款中';
-                    list.debt += `<div onclick="window.openFinanceModal(${r.id})" class="flex justify-between items-center p-6 card shadow-sm border-l-8 ${isLastMonth ? 'border-amber-400' : 'border-red-500'} transition active:scale-95"><div class="flex items-center gap-4"><div class="text-center bg-zinc-900 text-white px-3 py-1 rounded-xl font-mono text-xs">${r.month}M</div><div><p class="font-black text-lg">${r.name}</p><p class="text-xs font-bold opacity-50">月繳 $${Math.round(r.amount).toLocaleString()}</p></div></div><span class="${tagStyle} px-4 py-2 rounded-full text-xs font-black border">${tagText}</span></div>`;
-                } else if (r.type === 'realized' && isExact) {
-                    stats.rlz += Number(r.amount);
-                    list.rlz += `<tr onclick="window.openFinanceModal(${r.id})" class="hover:bg-gray-50 transition cursor-pointer"><td class="p-6 font-bold text-gray-800">${r.name}</td><td class="p-6 text-right font-black ${r.amount>=0?'text-red-500':'text-green-600'} money-text text-xl">$${Math.round(r.amount).toLocaleString()}</td></tr>`;
-                } else if (r.type === 'unrealized' && isExact) {
-                    const diff = Number(r.amount) - (Number(r.cost) || Number(r.amount)); stats.unrlz += diff;
-                    list.unrlz += `<tr onclick="window.openFinanceModal(${r.id})" class="hover:bg-gray-50 transition cursor-pointer"><td class="p-6"><div><p class="font-black text-gray-800">${r.name}</p><p class="text-[11px] text-gray-400 font-bold uppercase">Cost: $${Math.round(r.cost).toLocaleString()}</p></div></td><td class="p-6 text-right font-black ${diff>=0?'text-red-500':'text-green-600'} money-text text-xl">$${Math.round(diff).toLocaleString()}</td></tr>`;
-                }
-            });
+    } else if (debtOn) {
+      stats.exp += r.amount;
+      const isLast = selM === r.endMonth;
+      const db = deltaBadge('expense', r.name, r.amount, selM);
+      h.debt += `<div class="dcard ${isLast?'last':''}" onclick="openModal(${r.id})">
+        <div>
+          <div class="dc-name">${esc(r.name)}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+            <span class="dc-sub mask-target">月繳 ${fmt(r.amount)}</span>
+            ${db}
+          </div>
+        </div>
+        <span class="dc-badge ${isLast?'lst':'act'}">${isLast?'本月還清':'還款中'}</span></div>`;
 
-            document.getElementById('list-income').innerHTML = list.inc || '<p class="p-10 text-center text-gray-300 text-xs italic uppercase">No Income</p>';
-            document.getElementById('list-assets').innerHTML = list.ast || '<p class="p-10 text-center text-gray-300 text-xs italic uppercase">No Assets</p>';
-            document.getElementById('list-bills-full').innerHTML = list.bFull || '<p class="p-16 text-center text-gray-300 text-xs italic uppercase">No Bills</p>';
-            document.getElementById('list-debt-full').innerHTML = list.debt || '<p class="p-10 text-center text-gray-300 text-xs italic uppercase">No Debts</p>';
-            document.getElementById('table-realized').innerHTML = list.rlz || '<tr><td class="p-8 text-center text-gray-300 italic">Empty</td></tr>';
-            document.getElementById('table-unrealized').innerHTML = list.unrlz || '<tr><td class="p-8 text-center text-gray-300 italic">Empty</td></tr>';
-            
-            document.getElementById('stat-networth').innerText = `$${Math.round(stats.nw).toLocaleString()}`;
-            document.getElementById('stat-income').innerText = `$${Math.round(stats.inc).toLocaleString()}`;
-            document.getElementById('stat-expense').innerText = `$${Math.round(stats.exp).toLocaleString()}`;
-            document.getElementById('stat-realized').innerText = `$${Math.round(stats.rlz).toLocaleString()}`;
-            document.getElementById('stat-unrealized').innerHTML = `<span class="${stats.unrlz>=0?'text-red-500':'text-green-600'}">$${Math.round(stats.unrlz).toLocaleString()}</span>`;
-            document.getElementById('stat-bill-total').innerText = `$${Math.round(stats.billTotal).toLocaleString()}`;
-            document.getElementById('stat-bill-count').innerText = `${stats.billPaidCount} / ${stats.billTotalCount}`;
+    } else if (r.type === 'realized' && exact) {
+      stats.rlz += r.amount;
+      const c = r.amount >= 0 ? 'var(--red)' : 'var(--green)';
+      const db = deltaBadge('realized', r.name, r.amount, selM);
+      h.rlz += `<tr class="inv-row" onclick="openModal(${r.id})">
+        <td>${esc(r.name)}</td>
+        <td style="text-align:right">
+          <div class="mask-target" style="color:${c};font-family:var(--mono);font-weight:500">${fmt(r.amount)}</div>
+          <div style="text-align:right;margin-top:3px">${db}</div>
+        </td></tr>`;
 
-            if(!document.getElementById('chart-container').classList.contains('hidden')) updateChart();
-        }
+    } else if (r.type === 'unrealized' && exact) {
+      const diff = r.amount - (r.cost || r.amount);
+      stats.unrlz += diff;
+      const c = diff >= 0 ? 'var(--red)' : 'var(--green)';
+      // for unrealized: compare the derived diff (market - cost) vs prev month's same
+      const db = deltaBadge('unrealized', r.name, diff, selM, p => p.amount - (p.cost || p.amount));
+      h.unrlz += `<tr class="inv-row" onclick="openModal(${r.id})">
+        <td><div>${esc(r.name)}</div><div class="inv-sub">成本 ${fmt(r.cost)}</div></td>
+        <td style="text-align:right">
+          <div class="mask-target" style="color:${c};font-family:var(--mono);font-weight:500">${fmt(diff)}</div>
+          <div style="text-align:right;margin-top:3px">${db}</div>
+        </td></tr>`;
+    }
+  });
 
-        function updateChart() {
-            const data = [1,2,3,4,5,6,7,8,9,10,11,12].map(m => records.filter(r => r.type === 'asset' && r.month === m).reduce((a, b) => a + Number(b.amount), 0));
-            if (myChart) myChart.destroy();
-            myChart = new Chart(document.getElementById('netWorthChart').getContext('2d'), {
-                type: 'line',
-                data: { labels: [1,2,3,4,5,6,7,8,9,10,11,12].map(m=>m+'月'), datasets: [{ data: data, borderColor: '#000', borderWidth: 3, tension: 0.4, fill: true, backgroundColor: 'rgba(0,0,0,0.05)' }] },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, border: { display: false } } } }
-            });
-        }
-        function toggleBillPaid(id) { const r = records.find(x => x.id == id); r.paid = !r.paid; saveAndRender(); }
-        function handleUIChange() { 
-            const t = document.getElementById('entry-type').value; 
-            document.getElementById('field-duration').className = (t === 'expense') ? 'block' : 'hidden'; 
-            document.getElementById('field-cost').className = (t === 'unrealized' || t === 'realized') ? 'block' : 'hidden'; 
-            document.getElementById('label-amount').innerText = (t === 'unrealized') ? '目前市價' : '金額';
-        }
-        function deleteEntry() { const id = document.getElementById('edit-id').value; if(confirm('徹底刪除？')) { records = records.filter(x => x.id != id); saveAndRender(); window.closeFinanceModal(); } }
-        function switchTab(t) { ['overview', 'debt-page', 'bill-page', 'investment'].forEach(x => { document.getElementById(`section-${x}`).classList.toggle('hidden', x !== t); document.getElementById(`tab-${x}`).className = x === t ? 'tab-active pb-5' : 'text-gray-400 pb-5'; }); }
-        function toggleElement(id, arrowId) { const el = document.getElementById(id); document.getElementById(arrowId).innerText = el.classList.toggle('hidden') ? '↓' : '↑'; if(id === 'chart-container' && !el.classList.contains('hidden')) updateChart(); }
-        function exportData() { const dl = document.createElement('a'); dl.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records)); dl.download = "finance_backup.json"; dl.click(); }
-        function importData() { const input = document.createElement('input'); input.type = 'file'; input.onchange = e => { const reader = new FileReader(); reader.onload = re => { records = JSON.parse(re.target.result); saveAndRender(); }; reader.readAsText(e.target.files[0]); }; input.click(); }
-        document.getElementById('finance-form').onsubmit = function(e) {
-            e.preventDefault();
-            const id = document.getElementById('edit-id').value;
-            const data = {
-                month: parseInt(document.getElementById('entry-month').value),
-                endMonth: parseInt(document.getElementById('entry-end-month').value || document.getElementById('entry-month').value),
-                type: document.getElementById('entry-type').value,
-                name: document.getElementById('entry-name').value,
-                amount: Number(document.getElementById('entry-amount').value),
-                cost: Number(document.getElementById('entry-cost').value || 0),
-                paid: id ? (records.find(x => x.id == id).paid || false) : false
-            };
-            if(id) { const idx = records.findIndex(x => x.id == id); records[idx] = { ...data, id: Number(id) }; }
-            else { records.push({ id: Date.now(), ...data }); }
-            saveAndRender(); window.closeFinanceModal();
-        };
-        loadFromCloud();
-    </script>
+  document.getElementById('list-income').innerHTML  = h.inc  || '<div class="empty-msg">本月無收入記錄</div>';
+  document.getElementById('list-assets').innerHTML  = h.ast  || '<div class="empty-msg">本月無資產記錄</div>';
+  document.getElementById('list-debt').innerHTML    = h.debt || '<div class="empty-msg" style="background:var(--white);border:var(--border);border-radius:var(--r-lg);padding:40px 20px">本月無債務記錄</div>';
+  document.getElementById('list-bills').innerHTML   = h.bill || '<div style="grid-column:1/-1" class="empty-msg">本月無待繳卡費</div>';
+  document.getElementById('t-realized').innerHTML   = h.rlz  || '<tr><td colspan="2" class="empty-msg">無記錄</td></tr>';
+  document.getElementById('t-unrealized').innerHTML = h.unrlz || '<tr><td colspan="2" class="empty-msg">無記錄</td></tr>';
+
+  document.getElementById('s-nw').textContent  = fmt(stats.nw);
+  document.getElementById('s-inc').textContent = fmt(stats.inc);
+  document.getElementById('s-exp').textContent = fmt(stats.exp);
+  document.getElementById('s-rlz').textContent = fmt(stats.rlz);
+
+  const unEl = document.getElementById('s-unrlz');
+  unEl.textContent = fmt(stats.unrlz);
+  unEl.className = 'sc-val mask-target ' + (stats.unrlz >= 0 ? 'red' : 'grn');
+
+  document.getElementById('s-bill-total').textContent = fmt(stats.billTotal);
+  document.getElementById('s-bill-count').textContent = `${stats.billPaid} / ${stats.billCount}`;
+
+  if (document.getElementById('chart-container').style.display === 'block') updateChart();
+  if (privacyOn) document.getElementById('main-ui').classList.add('masked');
+
+  requestAnimationFrame(setupSortables);
+}
+
+/* ══ SORTABLE ══ */
+function setupSortables() {
+  const selM = parseInt(mSel.value);
+  const astEl = document.getElementById('list-assets');
+  if (astEl && astEl.querySelector('[data-id]')) {
+    if (sortableAssets) { sortableAssets.destroy(); sortableAssets = null; }
+    sortableAssets = Sortable.create(astEl, {
+      animation: 160, handle: '.drag-hdl', ghostClass: 'sortable-ghost',
+      onEnd() {
+        const ids = Array.from(astEl.children).map(c => c.dataset.id).filter(Boolean);
+        const rest = records.filter(r => !(r.type === 'asset' && r.month === selM));
+        const sorted = ids.map(id => records.find(r => String(r.id) === id)).filter(Boolean);
+        records = [...rest, ...sorted];
+        saveAndRender();
+      }
+    });
+  }
+  const billEl = document.getElementById('list-bills');
+  if (billEl && billEl.querySelector('[data-id]')) {
+    if (sortableBills) { sortableBills.destroy(); sortableBills = null; }
+    sortableBills = Sortable.create(billEl, {
+      animation: 160, ghostClass: 'sortable-ghost',
+      onEnd() {
+        const ids = Array.from(billEl.children).map(c => c.dataset.id).filter(Boolean);
+        const rest = records.filter(r => !(r.type === 'bill' && r.month === selM));
+        const sorted = ids.map(id => records.find(r => String(r.id) === id)).filter(Boolean);
+        records = [...rest, ...sorted];
+        saveAndRender();
+      }
+    });
+  }
+}
+
+/* ══ CLOUD LOAD (JSONP — bypasses CORS) ══ */
+function loadFromCloud() {
+  setSyncState('loading');
+
+  // Timeout fallback to localStorage if GAS doesn't respond in 8s
+  const timer = setTimeout(() => {
+    console.warn('Cloud load timeout, using localStorage');
+    loadFromLocal();
+  }, 8000);
+
+  window.__gasCallback = function(data) {
+    clearTimeout(timer);
+    // Remove script tag
+    const old = document.getElementById('gas-script');
+    if (old) old.remove();
+
+    try {
+      if (!Array.isArray(data)) throw new Error('not array');
+      const map = new Map();
+      data.forEach(item => {
+        if (item && item.id != null) map.set(String(item.id), normalise(item));
+      });
+      records = Array.from(map.values());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      setSyncState('ok');
+      renderAll();
+    } catch (e) {
+      console.warn('Cloud data error:', e.message);
+      loadFromLocal();
+    }
+  };
+
+  const script = document.createElement('script');
+  script.id = 'gas-script';
+  script.onerror = () => {
+    clearTimeout(timer);
+    console.warn('JSONP script error');
+    loadFromLocal();
+  };
+  script.src = SCRIPT_URL + '?callback=__gasCallback&nocache=' + Date.now();
+  document.head.appendChild(script);
+}
+
+function loadFromLocal() {
+  try {
+    const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    records = Array.isArray(local) ? local.map(normalise) : [];
+  } catch { records = []; }
+  setSyncState('offline');
+  renderAll();
+}
+
+/* ══ SAVE & RENDER ══ */
+async function saveAndRender() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  renderAll();
+  if (syncLock) return;
+  setSyncState('uploading');
+  syncLock = true;
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(records)
+    });
+    setSyncState('ok');
+  } catch (e) {
+    console.warn('Upload failed:', e.message);
+    setSyncState('error');
+  } finally { syncLock = false; }
+}
+
+/* ══ MONTH CHANGE ══ */
+function changeMonth() {
+  const targetM = parseInt(mSel.value);
+  const prevM   = targetM === 1 ? 12 : targetM - 1;
+  const hasData = records.some(r =>
+    ['asset','bill','unrealized'].includes(r.type) && r.month === targetM
+  );
+  if (!hasData) {
+    const prev = records.filter(r =>
+      ['asset','bill','unrealized'].includes(r.type) && r.month === prevM
+    );
+    if (prev.length > 0) {
+      records = [...records, ...prev.map((p, i) => ({
+        ...normalise(p),
+        id:       Date.now() + Math.random() * 9999 + i,
+        month:    targetM,
+        endMonth: targetM,
+        amount:   (p.type === 'bill' || p.type === 'unrealized') ? 0 : p.amount,
+        paid:     false,
+      }))];
+    }
+  }
+  renderAll();
+  if (window.innerWidth < 1024) toggleSidebar();
+}
+
+/* ══ EXPORT / IMPORT ══ */
+function exportData() {
+  const a = document.createElement('a');
+  a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(records, null, 2));
+  a.download = `finance_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json,application/json';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = re => {
+      try {
+        const parsed = JSON.parse(re.target.result);
+        if (!Array.isArray(parsed)) { alert('格式錯誤：JSON 必須是陣列'); return; }
+        records = parsed.map(normalise);
+        saveAndRender();
+        alert('還原成功，共 ' + records.length + ' 筆資料');
+      } catch { alert('JSON 解析失敗，請確認檔案格式'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+/* ══ START ══ */
+loadFromCloud();
+</script>
 </body>
 </html>
